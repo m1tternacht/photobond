@@ -93,15 +93,15 @@ const loginSwitch = authDropdown?.querySelector('.login-switch');
 
 // ---------- UI UPDATE ----------
 function updateAuthUI(username = null) {
+  authDropdown.classList.remove('active');
+
   if (username) {
     authText.textContent = username;
-    authDropdown.classList.remove('active');
-    authDropdown.style.display = 'none';
   } else {
     authText.textContent = 'Регистрация/Войти';
-    authDropdown.style.display = 'block';
   }
 }
+
 
 // ---------- CHECK AUTH ----------
 async function checkAuth() {
