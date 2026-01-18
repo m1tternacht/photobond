@@ -9,7 +9,7 @@
 .logo-bar {
   background: #fff;
   padding: clamp(10px, 2vw, 20px);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #ccc;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -122,7 +122,7 @@
 }
 
 .auth-cart {
-  position: absolute;
+  position: static;
   right: clamp(5px, 2vw, 20px);
   display: flex;
   align-items: center;
@@ -161,14 +161,18 @@
 .auth-dropdown {
   display: none;
   position: absolute;
+
+  /* ключевой момент */
   top: 100%;
-  right: 0;
+  right: 0px;
+
   background: #fff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  border-radius: 5px;
+  border: 1px solid #ccc;
   padding: clamp(10px, 2vw, 20px);
-  width: clamp(200px, 30vw, 300px);
+  width: 280px;
   z-index: 100;
+
+ 
 }
 
 .auth-dropdown.active {
@@ -309,7 +313,7 @@
 header {
   background: #f9f9f9;
   padding: clamp(10px, 2vw, 15px);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #ccc;
   position: relative;
   z-index: 40;
   width: 100%;
@@ -1439,7 +1443,7 @@ select#pages-select {
   padding: clamp(5px, 1vw, 8px);
   margin-top: 5px;
   border: 1px solid #ccc;
-  border-radius: 5px;
+  /* border-radius: 5px; */
   font-size: clamp(12px, 1.5vw, 14px);
 }
 
