@@ -97,9 +97,25 @@ function updateAuthUI(username = null) {
 
   if (username) {
     authText.textContent = username;
+    // Добавляем ссылку на личный кабинет
+    if (authToggle) {
+      authToggle.href = getBasePath() + 'account/index.html';
+    }
   } else {
     authText.textContent = 'Регистрация/Войти';
+    if (authToggle) {
+      authToggle.href = '#';
+    }
   }
+}
+
+// Определяем базовый путь в зависимости от текущей страницы
+function getBasePath() {
+  const path = window.location.pathname;
+  if (path.includes('/account/')) {
+    return '../';
+  }
+  return '';
 }
 
 
@@ -126,16 +142,14 @@ async function checkAuth() {
 
 // ---------- TOGGLE ----------
 authToggle?.addEventListener('click', (e) => {
-  e.preventDefault();
-
+  // Если авторизован - переход в личный кабинет (href уже установлен)
   if (localStorage.getItem('access')) {
-    if (confirm('Выйти из аккаунта?')) {
-      localStorage.clear();
-      updateAuthUI();
-    }
+    // Разрешаем переход по ссылке
     return;
   }
 
+  // Если не авторизован - показываем форму входа
+  e.preventDefault();
   authDropdown.classList.toggle('active');
 });
 
@@ -323,17 +337,28 @@ registerForm?.addEventListener('submit', async (e) => {
 
         dropdowns.forEach(dropdown => {
             const link = dropdown.querySelector('a');
-            const submenu = dropdown.querySelector('.submenu');
+            const menuName = dropdown.dataset.menu;
+            
             link.addEventListener('click', (e) => {
-                if (window.innerWidth <= 1024) {
+                if (window.innerWidth <= 1024 && menuName) {
                     e.preventDefault();
+                    
+                    // Берём данные из mega-menu панели
+                    const megaMenu = document.getElementById('mega-menu');
+                    const panel = megaMenu?.querySelector(`[data-panel="${menuName}"]`);
+                    const panelLinks = panel?.querySelectorAll('.mega-menu-links ul li');
+                    
+                    if (!panelLinks) return;
+                    
                     submenuContainer.innerHTML = '';
                     const backItem = document.createElement('li');
                     backItem.innerHTML = '<a href="#" class="back-link">< Назад</a>';
                     submenuContainer.appendChild(backItem);
-                    submenu.querySelectorAll('li').forEach(item => {
+                    
+                    panelLinks.forEach(item => {
                         submenuContainer.appendChild(item.cloneNode(true));
                     });
+                    
                     submenuContainer.classList.add('active');
                     navMenu.querySelector('.main-menu').style.transform = 'translateX(-100%)';
 
@@ -346,7 +371,122 @@ registerForm?.addEventListener('submit', async (e) => {
                 }
             });
         });
-    }}
+    }
+    
+    // ==================== MEGA MENU (Desktop) ====================
+    initMegaMenu();
+}
+
+function initMegaMenu() {
+    const megaMenu = document.getElementById('mega-menu');
+    const dropdowns = document.querySelectorAll('.main-menu .dropdown[data-menu]');
+    
+    if (!megaMenu || !dropdowns.length) return;
+    
+    // Только для десктопа
+    if (window.innerWidth <= 1024) return;
+    
+    let hideTimeout = null;
+    
+    // Показать mega-menu при наведении на dropdown
+    dropdowns.forEach(dropdown => {
+        const menuName = dropdown.dataset.menu;
+        const panel = megaMenu.querySelector(`[data-panel="${menuName}"]`);
+        
+        if (!panel) return;
+        
+        dropdown.addEventListener('mouseenter', () => {
+            clearTimeout(hideTimeout);
+            
+            // Скрываем все панели
+            megaMenu.querySelectorAll('.mega-menu-panel').forEach(p => p.classList.remove('active'));
+            
+            // Убираем активный класс с других dropdown
+            dropdowns.forEach(d => d.classList.remove('menu-active'));
+            
+            // Показываем нужную панель
+            panel.classList.add('active');
+            megaMenu.classList.add('active');
+            dropdown.classList.add('menu-active');
+        });
+        
+        dropdown.addEventListener('mouseleave', (e) => {
+            // Проверяем, не переходим ли мы в mega-menu
+            const relatedTarget = e.relatedTarget;
+            if (megaMenu.contains(relatedTarget)) return;
+            
+            hideTimeout = setTimeout(() => {
+                megaMenu.classList.remove('active');
+                dropdown.classList.remove('menu-active');
+            }, 100);
+        });
+    });
+    
+    // Держим mega-menu открытым при наведении на него
+    megaMenu.addEventListener('mouseenter', () => {
+        clearTimeout(hideTimeout);
+    });
+    
+    megaMenu.addEventListener('mouseleave', () => {
+        hideTimeout = setTimeout(() => {
+            megaMenu.classList.remove('active');
+            megaMenu.querySelectorAll('.mega-menu-panel').forEach(p => p.classList.remove('active'));
+            dropdowns.forEach(d => d.classList.remove('menu-active'));
+        }, 100);
+    });
+    
+    // Смена картинки и описания при наведении на ссылки
+    megaMenu.querySelectorAll('.mega-menu-panel').forEach(panel => {
+        const panelName = panel.dataset.panel;
+        const img = panel.querySelector('.mega-menu-image img');
+        const caption = panel.querySelector('.mega-menu-image-caption');
+        const links = panel.querySelectorAll('.mega-menu-links ul li a');
+        
+        // Сохраняем дефолтные значения
+        const defaultImg = img?.src;
+        const defaultCaption = caption?.textContent;
+        
+        links.forEach(link => {
+            const linkImg = link.dataset.img;
+            const linkDesc = link.dataset.desc;
+            
+            link.addEventListener('mouseenter', () => {
+                if (linkImg && img) {
+                    img.style.opacity = '0.7';
+                    setTimeout(() => {
+                        img.src = linkImg;
+                        img.style.opacity = '1';
+                    }, 150);
+                }
+                if (linkDesc && caption) {
+                    caption.textContent = linkDesc;
+                }
+            });
+            
+            link.addEventListener('mouseleave', () => {
+                if (defaultImg && img) {
+                    img.style.opacity = '0.7';
+                    setTimeout(() => {
+                        img.src = defaultImg;
+                        img.style.opacity = '1';
+                    }, 150);
+                }
+                if (defaultCaption && caption) {
+                    caption.textContent = defaultCaption;
+                }
+            });
+        });
+    });
+    
+    // Обновление при ресайзе
+    window.addEventListener('resize', () => {
+        if (window.innerWidth <= 1024) {
+            megaMenu.classList.remove('active');
+            megaMenu.querySelectorAll('.mega-menu-panel').forEach(p => p.classList.remove('active'));
+            dropdowns.forEach(d => d.classList.remove('menu-active'));
+        }
+    });
+}
 
 
 function initFooterAccordions() {
@@ -637,18 +777,27 @@ function initPurchaseOptions() {
 }
 
 function extractSubmenuData() {
-    const navMenu = document.getElementById('nav-menu');
-    if (!navMenu) return;
+    const megaMenu = document.getElementById('mega-menu');
+    if (!megaMenu) return;
 
-    const dropdowns = navMenu.querySelectorAll('.dropdown');
-    dropdowns.forEach(dropdown => {
-        const mainLink = dropdown.querySelector('a');
-        const mainTitle = mainLink.textContent.trim().replace(/<[^>]+>/g, '');
-        const submenuItems = dropdown.querySelectorAll('.submenu li a');
-        submenuData[mainTitle] = Array.from(submenuItems).map(item => ({
+    // Маппинг data-panel к названиям страниц
+    const panelToTitle = {
+        'photoprint': 'Фотопечать',
+        'calendars': 'Календари',
+        'polygraphy': 'Полиграфия'
+    };
+
+    const panels = megaMenu.querySelectorAll('.mega-menu-panel');
+    panels.forEach(panel => {
+        const panelName = panel.dataset.panel;
+        const title = panelToTitle[panelName];
+        if (!title) return;
+
+        const links = panel.querySelectorAll('.mega-menu-links ul li a');
+        submenuData[title] = Array.from(links).map(item => ({
             title: item.textContent.trim(),
             link: item.getAttribute('href'),
-            imgSrc: item.getAttribute('data-img') || '/images/placeholder.jpg',
+            imgSrc: item.getAttribute('data-img') || '/frontend/images/jonny-caspari-KuudDjBHIlA-unsplash.jpg',
             description: item.getAttribute('data-desc') || `Описание для ${item.textContent.trim()}`
         }));
     });
