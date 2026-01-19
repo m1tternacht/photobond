@@ -13,7 +13,7 @@
         </button>
     </div>
     
-    <!-- Auth dropdown вынесен на уровень logo-bar -->
+    <!-- Auth dropdown - форма входа/регистрации -->
     <div class="auth-dropdown" id="auth-dropdown">
         <!-- Форма входа -->
         <form class="auth-form login-form active" id="login-form">
@@ -53,6 +53,41 @@
             <img src="/frontend/images/icon-cross.png" alt="Закрыть" class="close-icon">
         </button>
     </div>
+    
+    <!-- User menu dropdown - меню для авторизованного пользователя -->
+    <div class="auth-dropdown user-menu-dropdown" id="user-menu-dropdown">
+        <h3 id="user-menu-greeting">Личный кабинет</h3>
+        <nav class="user-menu-nav">
+            <a href="/frontend/account/index.html" class="user-menu-item">
+             
+                Обзор
+            </a>
+            <a href="/frontend/account/projects.html" class="user-menu-item">
+                
+                Мои проекты
+            </a>
+            <a href="/frontend/account/orders.html" class="user-menu-item">
+                
+                Заказы
+            </a>
+            <a href="/frontend/account/galleries.html" class="user-menu-item">
+                
+                Галереи
+            </a>
+            <a href="/frontend/account/settings.html" class="user-menu-item">
+                
+                Настройки
+            </a>
+        </nav>
+        <div class="user-menu-divider"></div>
+        <button class="user-menu-logout" id="header-logout-btn">
+            
+            Выйти
+        </button>
+        <button class="close-btn">
+            <img src="/frontend/images/icon-cross.png" alt="Закрыть" class="close-icon">
+        </button>
+    </div>
 </div>
 
 <header>
@@ -62,17 +97,17 @@
         </button>
         <ul class="main-menu">
             <li class="dropdown" data-menu="photoprint">
-                <a href="photoprint.html">Фотопечать<img src="/frontend/images/icon-right.png" alt="Подменю" class="submenu-icon"></a>
+                <a href="/frontend/photoprint.html">Фотопечать<img src="/frontend/images/icon-right.png" alt="Подменю" class="submenu-icon"></a>
             </li>
-            <li><a href="canvas.html">Печать на холсте</a></li>
-            <li><a href="photobooks.html">Фотокниги</a></li>
+            <li><a href="/frontend/canvas.html">Печать на холсте</a></li>
+            <li><a href="/frontend/photobooks.html">Фотокниги</a></li>
             <li class="dropdown" data-menu="calendars">
-                <a href="calendars.html">Календари<img src="/frontend/images/icon-right.png" alt="Подменю" class="submenu-icon"></a>
+                <a href="/frontend/calendars.html">Календари<img src="/frontend/images/icon-right.png" alt="Подменю" class="submenu-icon"></a>
             </li>
-            <li><a href="postcards.html">Открытки</a></li>
-            <li><a href="documents.html">Фото на документы</a></li>
+            <li><a href="/frontend/postcards.html">Открытки</a></li>
+            <li><a href="/frontend/documents.html">Фото на документы</a></li>
             <li class="dropdown" data-menu="polygraphy">
-                <a href="polygraphy.html">Полиграфия<img src="/frontend/images/icon-right.png" alt="Подменю" class="submenu-icon"></a>
+                <a href="/frontend/polygraphy.html">Полиграфия<img src="/frontend/images/icon-right.png" alt="Подменю" class="submenu-icon"></a>
             </li>
         </ul>
         
@@ -92,12 +127,12 @@
                 <div class="mega-menu-links">
                     <h3>Фотопечать</h3>
                     <ul>
-                        <li><a href="standard-photos.html" data-img="/frontend/images/jonny-caspari-KuudDjBHIlA-unsplash.jpg" data-desc="Печать фотографий стандартных размеров от 10х15 до 30х42">Стандартные фото</a></li>
-                        <li><a href="polaroid-print.html" data-img="/frontend/images/bianca-ackermann-40dpU4ULfFw-unsplash.jpg" data-desc="Печать фотографий в стиле Полароид с белой рамкой">Печать в стиле "Полароид"</a></li>
+                        <li><a href="/frontend/standard-photos.html" data-img="/frontend/images/jonny-caspari-KuudDjBHIlA-unsplash.jpg" data-desc="Печать фотографий стандартных размеров от 10х15 до 30х42">Стандартные фото</a></li>
+                        <li><a href="/frontend/polaroid-print.html" data-img="/frontend/images/bianca-ackermann-40dpU4ULfFw-unsplash.jpg" data-desc="Печать фотографий в стиле Полароид с белой рамкой">Печать в стиле "Полароид"</a></li>
                         <li><a href="#" data-img="/frontend/images/jonny-caspari-KuudDjBHIlA-unsplash.jpg" data-desc="Большие форматы для декора и подарков">Постеры</a></li>
                         <li><a href="#" data-img="/frontend/images/bianca-ackermann-40dpU4ULfFw-unsplash.jpg" data-desc="Широкоформатная печать для больших проектов">Широкоформатная печать</a></li>
                     </ul>
-                    <a href="photoprint.html" class="mega-menu-view-all">Смотреть все →</a>
+                    <a href="/frontend/photoprint.html" class="mega-menu-view-all">Смотреть все →</a>
                 </div>
             </div>
         </div>
@@ -119,7 +154,7 @@
                         <li><a href="#" data-img="/frontend/images/bianca-ackermann-40dpU4ULfFw-unsplash.jpg" data-desc="Компактные календари для кармана">Карманные календари</a></li>
                         <li><a href="#" data-img="/frontend/images/jonny-caspari-KuudDjBHIlA-unsplash.jpg" data-desc="Большие календари в виде постера">Календари-постеры</a></li>
                     </ul>
-                    <a href="calendars.html" class="mega-menu-view-all">Смотреть все →</a>
+                    <a href="/frontend/calendars.html" class="mega-menu-view-all">Смотреть все →</a>
                 </div>
             </div>
         </div>
@@ -137,7 +172,7 @@
                         <li><a href="#" data-img="/frontend/images/jonny-caspari-KuudDjBHIlA-unsplash.jpg" data-desc="Печать документов любой сложности">Печать документов</a></li>
                         <li><a href="#" data-img="/frontend/images/bianca-ackermann-40dpU4ULfFw-unsplash.jpg" data-desc="Стильные визитки для вашего бизнеса">Визитки</a></li>
                     </ul>
-                    <a href="polygraphy.html" class="mega-menu-view-all">Смотреть все →</a>
+                    <a href="/frontend/polygraphy.html" class="mega-menu-view-all">Смотреть все →</a>
                 </div>
             </div>
         </div>

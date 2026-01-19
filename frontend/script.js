@@ -1,8 +1,25 @@
 // scripts.js
 let submenuData = {};
 
+// Определяем базовый путь к frontend в зависимости от текущей страницы
+function getBasePath() {
+  const path = window.location.pathname;
+  // Если мы в подпапке (например /frontend/account/)
+  if (path.includes('/account/')) {
+    return '/frontend/';
+  }
+  // Если мы в корне frontend
+  if (path.includes('/frontend/')) {
+    return '/frontend/';
+  }
+  // Fallback для локальной разработки
+  return '';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    fetch('header.html')
+    const basePath = getBasePath();
+    
+    fetch(basePath + 'header.html')
         .then(response => response.text())
         .then(data => {
             document.getElementById('header-container').innerHTML = data;
@@ -14,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(error => console.error('Ошибка загрузки шапки:', error));
 
-    fetch('footer-common.html')
+    fetch(basePath + 'footer-common.html')
         .then(response => response.text())
         .then(data => {
             document.getElementById('footer-common-container').innerHTML = data;
@@ -23,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(error => console.error('Ошибка загрузки нижних блоков:', error));
 
     if (document.getElementById('recommendations-container')) {
-        fetch('recommendations.html')
+        fetch(basePath + 'recommendations.html')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('recommendations-container').innerHTML = data;
@@ -79,152 +96,9 @@ function initHeaderElements() {
     }
 
     // ==================== AUTH ====================
-
-const authToggle = document.getElementById('auth-toggle');
-const authDropdown = document.getElementById('auth-dropdown');
-const authText = document.getElementById('auth-text');
-const authCloseBtn = authDropdown?.querySelector('.close-btn');
-
-const loginForm = authDropdown?.querySelector('.login-form');
-const registerForm = authDropdown?.querySelector('.register-form');
-
-const registerSwitch = authDropdown?.querySelector('.register-switch');
-const loginSwitch = authDropdown?.querySelector('.login-switch');
-
-// ---------- UI UPDATE ----------
-function updateAuthUI(username = null) {
-  authDropdown.classList.remove('active');
-
-  if (username) {
-    authText.textContent = username;
-    // Добавляем ссылку на личный кабинет
-    if (authToggle) {
-      authToggle.href = getBasePath() + 'account/index.html';
-    }
-  } else {
-    authText.textContent = 'Регистрация/Войти';
-    if (authToggle) {
-      authToggle.href = '#';
-    }
-  }
-}
-
-// Определяем базовый путь в зависимости от текущей страницы
-function getBasePath() {
-  const path = window.location.pathname;
-  if (path.includes('/account/')) {
-    return '../';
-  }
-  return '';
-}
-
-
-// ---------- CHECK AUTH ----------
-async function checkAuth() {
-  const token = localStorage.getItem('access');
-  if (!token) return;
-
-  try {
-    const res = await fetch('http://127.0.0.1:8000/api/auth/me/', {
-      headers: {
-        'Authorization': 'Bearer ' + token
-      }
-    });
-
-    if (!res.ok) throw new Error();
-
-    const user = await res.json();
-    updateAuthUI(user.username);
-  } catch {
-    localStorage.clear();
-  }
-}
-
-// ---------- TOGGLE ----------
-authToggle?.addEventListener('click', (e) => {
-  // Если авторизован - переход в личный кабинет (href уже установлен)
-  if (localStorage.getItem('access')) {
-    // Разрешаем переход по ссылке
-    return;
-  }
-
-  // Если не авторизован - показываем форму входа
-  e.preventDefault();
-  authDropdown.classList.toggle('active');
-});
-
-// ---------- CLOSE ----------
-authCloseBtn?.addEventListener('click', () => {
-  authDropdown.classList.remove('active');
-});
-
-// ---------- SWITCH FORMS ----------
-registerSwitch?.addEventListener('click', () => {
-  loginForm.classList.remove('active');
-  registerForm.classList.add('active');
-});
-
-loginSwitch?.addEventListener('click', () => {
-  registerForm.classList.remove('active');
-  loginForm.classList.add('active');
-});
-
-// ---------- LOGIN ----------
-loginForm?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const username = loginForm.querySelector('input[type="text"]').value;
-  const password = loginForm.querySelector('input[type="password"]').value;
-
-  const res = await fetch('http://127.0.0.1:8000/api/auth/login/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    alert('Ошибка входа');
-    return;
-  }
-
-  localStorage.setItem('access', data.access);
-  localStorage.setItem('refresh', data.refresh);
-
-  await checkAuth();
-});
-
-// ---------- REGISTER (ВРЕМЕННО ЗАГЛУШКА) ----------
-registerForm?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const username = registerForm.querySelector('input[type="text"]').value;
-  const email = registerForm.querySelector('input[type="email"]').value;
-  const password = registerForm.querySelector('input[type="password"]').value;
-
-  const res = await fetch('http://127.0.0.1:8000/api/auth/register/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, email, password })
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    alert(data.detail || 'Ошибка регистрации');
-    return;
-  }
-
-  localStorage.setItem('access', data.access);
-  localStorage.setItem('refresh', data.refresh);
-
-  await checkAuth();
-});
-
+    initAuth();
     
-
-    // Корзина
+    // ==================== КОРЗИНА ====================
     const cartToggle = document.getElementById('cart-toggle');
     const cartDropdown = document.getElementById('cart-dropdown');
     const cartCloseBtn = cartDropdown?.querySelector('.close-btn');
@@ -238,11 +112,11 @@ registerForm?.addEventListener('submit', async (e) => {
         if (!cartItems) return;
         cartItems.innerHTML = '';
         if (cart.length === 0) {
-            cartEmpty.classList.add('active');
-            checkoutBtn.style.display = 'none';
+            cartEmpty?.classList.add('active');
+            if (checkoutBtn) checkoutBtn.style.display = 'none';
         } else {
-            cartEmpty.classList.remove('active');
-            checkoutBtn.style.display = 'block';
+            cartEmpty?.classList.remove('active');
+            if (checkoutBtn) checkoutBtn.style.display = 'block';
             cart.forEach((item) => {
                 const li = document.createElement('li');
                 li.textContent = `${item.title} - ${item.price} руб.`;
@@ -277,7 +151,7 @@ registerForm?.addEventListener('submit', async (e) => {
             }
         });
 
-        checkoutBtn.addEventListener('click', () => {
+        checkoutBtn?.addEventListener('click', () => {
             console.log('Оформление заказа:', cart);
             cartDropdown.classList.remove('active');
             overlay.classList.remove('active');
@@ -286,12 +160,12 @@ registerForm?.addEventListener('submit', async (e) => {
     
     // Добавление в корзину через кнопку "Заказать"
     document.querySelector('.btn-order')?.addEventListener('click', () => {
-        const size = document.getElementById('size-display').textContent;
+        const size = document.getElementById('size-display')?.textContent;
         const paper = document.getElementById('paper-display')?.textContent || 'Матовая';
         const mode = document.getElementById('mode-display')?.textContent || 'Детальный';
         const type = document.getElementById('type-display')?.textContent;
         const pages = document.getElementById('pages-display')?.textContent;
-        const price = parseInt(document.getElementById('price-display').textContent);
+        const price = parseInt(document.getElementById('price-display')?.textContent || '0');
         const title = type && pages 
             ? `Фотокнига ${type} ${size}, ${paper}, ${pages} стр.` 
             : `Фото ${size}, ${paper}, ${mode}`;
@@ -301,7 +175,7 @@ registerForm?.addEventListener('submit', async (e) => {
         updateCart();
     });
 
-    // Бургер-меню
+    // ==================== БУРГЕР-МЕНЮ ====================
     const burgerToggle = document.getElementById('burger-toggle');
     const navMenu = document.getElementById('nav-menu');
     const menuCloseBtn = navMenu?.querySelector('.menu-close-btn');
@@ -320,8 +194,9 @@ registerForm?.addEventListener('submit', async (e) => {
                 navMenu.classList.remove('active');
                 burgerToggle.classList.remove('active');
                 overlay.classList.remove('active');
-                submenuContainer.classList.remove('active');
-                navMenu.querySelector('.main-menu').style.transform = 'translateX(0)';
+                submenuContainer?.classList.remove('active');
+                const mainMenu = navMenu.querySelector('.main-menu');
+                if (mainMenu) mainMenu.style.transform = 'translateX(0)';
             });
         }
 
@@ -330,25 +205,25 @@ registerForm?.addEventListener('submit', async (e) => {
                 navMenu.classList.remove('active');
                 burgerToggle.classList.remove('active');
                 overlay.classList.remove('active');
-                submenuContainer.classList.remove('active');
-                navMenu.querySelector('.main-menu').style.transform = 'translateX(0)';
+                submenuContainer?.classList.remove('active');
+                const mainMenu = navMenu.querySelector('.main-menu');
+                if (mainMenu) mainMenu.style.transform = 'translateX(0)';
             }
         });
 
-        dropdowns.forEach(dropdown => {
+        dropdowns?.forEach(dropdown => {
             const link = dropdown.querySelector('a');
             const menuName = dropdown.dataset.menu;
             
-            link.addEventListener('click', (e) => {
+            link?.addEventListener('click', (e) => {
                 if (window.innerWidth <= 1024 && menuName) {
                     e.preventDefault();
                     
-                    // Берём данные из mega-menu панели
                     const megaMenu = document.getElementById('mega-menu');
                     const panel = megaMenu?.querySelector(`[data-panel="${menuName}"]`);
                     const panelLinks = panel?.querySelectorAll('.mega-menu-links ul li');
                     
-                    if (!panelLinks) return;
+                    if (!panelLinks || !submenuContainer) return;
                     
                     submenuContainer.innerHTML = '';
                     const backItem = document.createElement('li');
@@ -360,13 +235,14 @@ registerForm?.addEventListener('submit', async (e) => {
                     });
                     
                     submenuContainer.classList.add('active');
-                    navMenu.querySelector('.main-menu').style.transform = 'translateX(-100%)';
+                    const mainMenu = navMenu.querySelector('.main-menu');
+                    if (mainMenu) mainMenu.style.transform = 'translateX(-100%)';
 
                     const backLink = submenuContainer.querySelector('.back-link');
-                    backLink.addEventListener('click', (e) => {
+                    backLink?.addEventListener('click', (e) => {
                         e.preventDefault();
                         submenuContainer.classList.remove('active');
-                        navMenu.querySelector('.main-menu').style.transform = 'translateX(0)';
+                        if (mainMenu) mainMenu.style.transform = 'translateX(0)';
                     });
                 }
             });
@@ -377,6 +253,158 @@ registerForm?.addEventListener('submit', async (e) => {
     initMegaMenu();
 }
 
+// ==================== AUTH MODULE ====================
+function initAuth() {
+    const authToggle = document.getElementById('auth-toggle');
+    const authDropdown = document.getElementById('auth-dropdown');
+    const userMenuDropdown = document.getElementById('user-menu-dropdown');
+    const authText = document.getElementById('auth-text');
+    const authCloseBtn = authDropdown?.querySelector('.close-btn');
+    const userMenuCloseBtn = userMenuDropdown?.querySelector('.close-btn');
+    const headerLogoutBtn = document.getElementById('header-logout-btn');
+    const userMenuGreeting = document.getElementById('user-menu-greeting');
+
+    const loginForm = authDropdown?.querySelector('.login-form');
+    const registerForm = authDropdown?.querySelector('.register-form');
+
+    const registerSwitch = authDropdown?.querySelector('.register-switch');
+    const loginSwitch = authDropdown?.querySelector('.login-switch');
+
+    // ---------- UI UPDATE ----------
+    function updateAuthUI(username = null) {
+        authDropdown?.classList.remove('active');
+        userMenuDropdown?.classList.remove('active');
+
+        if (username) {
+            if (authText) authText.textContent = username;
+            if (userMenuGreeting) userMenuGreeting.textContent = username;
+        } else {
+            if (authText) authText.textContent = 'Регистрация/Войти';
+        }
+    }
+
+    // ---------- CHECK AUTH ----------
+    async function checkAuth() {
+        const token = localStorage.getItem('access');
+        if (!token) return;
+
+        try {
+            const res = await fetch('http://127.0.0.1:8000/api/auth/me/', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+
+            if (!res.ok) throw new Error();
+
+            const user = await res.json();
+            updateAuthUI(user.username);
+        } catch {
+            localStorage.clear();
+        }
+    }
+
+    // ---------- TOGGLE ----------
+    authToggle?.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        if (localStorage.getItem('access')) {
+            // Авторизован - показываем меню ЛК
+            userMenuDropdown?.classList.toggle('active');
+            authDropdown?.classList.remove('active');
+        } else {
+            // Не авторизован - показываем форму входа
+            authDropdown?.classList.toggle('active');
+            userMenuDropdown?.classList.remove('active');
+        }
+    });
+
+    // ---------- CLOSE ----------
+    authCloseBtn?.addEventListener('click', () => {
+        authDropdown?.classList.remove('active');
+    });
+
+    userMenuCloseBtn?.addEventListener('click', () => {
+        userMenuDropdown?.classList.remove('active');
+    });
+
+    // ---------- LOGOUT ----------
+    headerLogoutBtn?.addEventListener('click', () => {
+        localStorage.clear();
+        updateAuthUI();
+        userMenuDropdown?.classList.remove('active');
+        window.location.reload();
+    });
+
+    // ---------- SWITCH FORMS ----------
+    registerSwitch?.addEventListener('click', () => {
+        loginForm?.classList.remove('active');
+        registerForm?.classList.add('active');
+    });
+
+    loginSwitch?.addEventListener('click', () => {
+        registerForm?.classList.remove('active');
+        loginForm?.classList.add('active');
+    });
+
+    // ---------- LOGIN ----------
+    loginForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const username = loginForm.querySelector('input[type="text"]').value;
+        const password = loginForm.querySelector('input[type="password"]').value;
+
+        const res = await fetch('http://127.0.0.1:8000/api/auth/login/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert('Ошибка входа');
+            return;
+        }
+
+        localStorage.setItem('access', data.access);
+        localStorage.setItem('refresh', data.refresh);
+
+        await checkAuth();
+    });
+
+    // ---------- REGISTER ----------
+    registerForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const username = registerForm.querySelector('input[type="text"]').value;
+        const email = registerForm.querySelector('input[type="email"]').value;
+        const password = registerForm.querySelector('input[type="password"]').value;
+
+        const res = await fetch('http://127.0.0.1:8000/api/auth/register/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.detail || 'Ошибка регистрации');
+            return;
+        }
+
+        localStorage.setItem('access', data.access);
+        localStorage.setItem('refresh', data.refresh);
+
+        await checkAuth();
+    });
+
+    // Проверяем авторизацию при загрузке
+    checkAuth();
+}
+
+// ==================== MEGA MENU (Desktop) ====================
 function initMegaMenu() {
     const megaMenu = document.getElementById('mega-menu');
     const dropdowns = document.querySelectorAll('.main-menu .dropdown[data-menu]');
@@ -1032,6 +1060,3 @@ function initSlider() {
         images[currentImage].classList.add('active');
     });
 }
-
-
-
