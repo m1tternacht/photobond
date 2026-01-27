@@ -336,7 +336,8 @@ function getDefaultSettings(orientation) {
         crop: { x: 0, y: 0, zoom: 100 },
         rotation: 0,
         filter: 'original',
-        fullImage: false
+        fullImage: false,
+        wasEdited: false // флаг: было ли фото открыто в редакторе
     };
 }
 
@@ -474,14 +475,11 @@ async function loadGalleryPhotos(galleryId) {
 // ==================== SETTINGS PAGE (STEP 2) ====================
 function initSettingsPage() {
     const sortBy = document.getElementById('sort-by');
-    const btnApplyAll = document.getElementById('btn-apply-all');
     
     sortBy?.addEventListener('change', () => {
         sortPhotos(sortBy.value);
         renderSettingsPage();
     });
-    
-    btnApplyAll?.addEventListener('click', () => applySettingsToAll());
 }
 
 function sortPhotos(by) {
@@ -564,6 +562,7 @@ function renderSettingsPage() {
                     </div>
                     <button class="photo-settings-delete" data-id="${photo.id}">🗑️</button>
                 </div>
+                <button class="btn-apply-to-all" data-id="${photo.id}">Применить настройки ко всем фото</button>
             </div>
         </div>
         `;
@@ -609,6 +608,13 @@ function renderSettingsPage() {
             renderSettingsPage();
         });
     });
+    
+    // Обработчик "применить ко всем" для каждого фото
+    list.querySelectorAll('.btn-apply-to-all').forEach(btn => {
+        btn.addEventListener('click', () => {
+            applySettingsFromPhoto(btn.dataset.id);
+        });
+    });
 }
 
 function updatePhotoSetting(id, key, value) {
@@ -619,24 +625,48 @@ function updatePhotoSetting(id, key, value) {
     }
 }
 
-function applySettingsToAll() {
-    if (AppState.photos.length === 0) return;
+function applySettingsFromPhoto(photoId) {
+    const photo = AppState.photos.find(p => p.id === photoId);
+    if (!photo) return;
     
-    const firstPhoto = AppState.photos[0];
+    // Копируем настройки с выбранного фото на все остальные
+    // Размер применяется с учётом ориентации каждого фото
     const settings = { 
-        size: firstPhoto.settings.size,
-        paper: firstPhoto.settings.paper,
-        frame: firstPhoto.settings.frame,
-        frameSize: firstPhoto.settings.frameSize,
-        quantity: firstPhoto.settings.quantity
+        paper: photo.settings.paper,
+        frame: photo.settings.frame,
+        frameSize: photo.settings.frameSize,
+        quantity: photo.settings.quantity
     };
     
-    AppState.photos.forEach(photo => {
-        Object.assign(photo.settings, settings);
+    // Получаем базовый размер (без учёта ориентации)
+    const [a, b] = photo.settings.size.split('x').map(Number);
+    const baseWidth = Math.min(a, b);
+    const baseHeight = Math.max(a, b);
+    
+    AppState.photos.forEach(p => {
+        // Применяем общие настройки
+        p.settings.paper = settings.paper;
+        p.settings.frame = settings.frame;
+        p.settings.frameSize = settings.frameSize;
+        p.settings.quantity = settings.quantity;
+        
+        // Размер применяем с учётом ориентации фото
+        if (p.orientation === 'landscape') {
+            p.settings.size = `${baseHeight}x${baseWidth}`;
+        } else {
+            p.settings.size = `${baseWidth}x${baseHeight}`;
+        }
     });
     
     renderSettingsPage();
+    updateTotalPrice();
     alert('Настройки применены ко всем фото');
+}
+
+// Старая функция для обратной совместимости
+function applySettingsToAll() {
+    if (AppState.photos.length === 0) return;
+    applySettingsFromPhoto(AppState.photos[0].id);
 }
 
 // ==================== PREVIEW PAGE (STEP 3) ====================
@@ -672,10 +702,13 @@ function renderPreviewPage(filter = 'all', groupBy = 'size') {
     if (!grid) return;
     
     // Подсчёт для фильтров
+    const loadedCount = AppState.photos.length; // Загружено - количество уникальных фото
+    const toPrintCount = AppState.photos.reduce((sum, p) => sum + p.settings.quantity, 0); // В печать - сумма quantity
     const inSizeCount = AppState.photos.filter(p => !needsCropping(p)).length;
     const needsReviewCount = AppState.photos.filter(p => needsCropping(p)).length;
     
-    document.getElementById('filter-total').textContent = AppState.photos.length;
+    document.getElementById('filter-total').textContent = toPrintCount;
+    document.getElementById('filter-loaded').textContent = loadedCount;
     document.getElementById('filter-sized').textContent = inSizeCount;
     document.getElementById('filter-review').textContent = needsReviewCount;
     
@@ -698,7 +731,7 @@ function renderPreviewPage(filter = 'all', groupBy = 'size') {
         
         grid.innerHTML = Object.entries(groups).map(([size, groupPhotos]) => `
             <div class="preview-group">
-                <div class="preview-group-title">${size} фото | ${groupPhotos.length} фото</div>
+                <div class="preview-group-title">${size} | ${groupPhotos.length} фото</div>
                 <div class="preview-photos">
                     ${groupPhotos.map(photo => renderPreviewPhoto(photo)).join('')}
                 </div>
@@ -728,15 +761,127 @@ function renderPreviewPage(filter = 'all', groupBy = 'size') {
 }
 
 function renderPreviewPhoto(photo) {
-    const filterStyle = photo.settings.filter === 'grayscale' ? 'filter: grayscale(100%);' :
-                       photo.settings.filter === 'sepia' ? 'filter: sepia(100%);' : '';
-    
     const needsReview = needsCropping(photo);
+    
+    // Стили для фильтров
+    let filterStyle = '';
+    if (photo.settings.filter === 'grayscale') {
+        filterStyle = 'filter: grayscale(100%);';
+    } else if (photo.settings.filter === 'sepia') {
+        filterStyle = 'filter: sepia(100%);';
+    }
+    
+    // Иконка редактирования (показываем если было изменено что-то кроме wasEdited)
+    const isModified = photo.settings.filter !== 'original' || 
+                       photo.settings.rotation !== 0 || 
+                       photo.settings.fullImage ||
+                       photo.settings.crop.zoom !== 100 ||
+                       photo.settings.crop.x !== 0 ||
+                       photo.settings.crop.y !== 0;
+    
+    const editedIcon = isModified ? '<div class="edited-icon" title="Фото изменено">✎</div>' : '';
+    const fullImageIcon = photo.settings.fullImage ? '<div class="fullimage-icon" title="С полями">▢</div>' : '';
+    
+    // Режим 1: Фото НЕ было в редакторе - показываем в исходном соотношении
+    if (!photo.settings.wasEdited) {
+        // Определяем индикаторы обрезки
+        let cropIndicator = '';
+        if (needsReview) {
+            const photoRatio = photo.width / photo.height;
+            const [sizeA, sizeB] = photo.settings.size.split('x').map(Number);
+            const sizeRatio = sizeA / sizeB;
+            
+            if (photoRatio > sizeRatio) {
+                cropIndicator = `
+                    <div class="crop-indicator crop-left"></div>
+                    <div class="crop-indicator crop-right"></div>
+                `;
+            } else {
+                cropIndicator = `
+                    <div class="crop-indicator crop-top"></div>
+                    <div class="crop-indicator crop-bottom"></div>
+                `;
+            }
+        }
+        
+        return `
+            <div class="preview-photo-item">
+                <div class="preview-photo-thumb preview-original" data-id="${photo.id}">
+                    <img src="${photo.url}" alt="${photo.name}" style="${filterStyle}">
+                    ${cropIndicator}
+                    ${editedIcon}
+                    ${fullImageIcon}
+                </div>
+                <div class="preview-photo-name">${photo.name}</div>
+                <a href="#" class="preview-photo-edit" data-id="${photo.id}">редактировать</a>
+            </div>
+        `;
+    }
+    
+    // Режим 2: Фото БЫЛО в редакторе - показываем в соотношении размера печати
+    const [sizeA, sizeB] = photo.settings.size.split('x').map(Number);
+    const frameRatio = sizeA / sizeB;
+    
+    // Базовые размеры превью
+    const previewMaxWidth = 180;
+    const previewMaxHeight = 200;
+    
+    let frameWidth, frameHeight;
+    if (previewMaxWidth / previewMaxHeight > frameRatio) {
+        frameHeight = previewMaxHeight;
+        frameWidth = frameHeight * frameRatio;
+    } else {
+        frameWidth = previewMaxWidth;
+        frameHeight = frameWidth / frameRatio;
+    }
+    
+    // Рассчитываем размеры и позицию изображения
+    const imgRatio = photo.width / photo.height;
+    const zoom = photo.settings.crop.zoom / 100;
+    
+    let imgWidth, imgHeight, imgLeft, imgTop;
+    
+    if (photo.settings.fullImage) {
+        // Вписываем целиком с полями
+        if (imgRatio > frameRatio) {
+            imgWidth = frameWidth;
+            imgHeight = frameWidth / imgRatio;
+        } else {
+            imgHeight = frameHeight;
+            imgWidth = frameHeight * imgRatio;
+        }
+        // Центрируем
+        imgLeft = (frameWidth - imgWidth) / 2;
+        imgTop = (frameHeight - imgHeight) / 2;
+    } else {
+        // Заполняем с обрезкой
+        if (imgRatio > frameRatio) {
+            imgHeight = frameHeight * zoom;
+            imgWidth = imgHeight * imgRatio;
+        } else {
+            imgWidth = frameWidth * zoom;
+            imgHeight = imgWidth / imgRatio;
+        }
+        // Применяем смещение пропорционально размеру рамки
+        // Используем сохранённый размер рамки редактора или рассчитываем масштаб
+        const editorFrameWidth = photo.settings.editorFrameWidth || 400;
+        const scale = frameWidth / editorFrameWidth;
+        imgLeft = photo.settings.crop.x * scale;
+        imgTop = photo.settings.crop.y * scale;
+    }
+    
+    const rotateStyle = photo.settings.rotation !== 0 ? `transform: rotate(${photo.settings.rotation}deg);` : '';
+    const bgColor = photo.settings.fullImage ? '#fff' : 'transparent';
     
     return `
         <div class="preview-photo-item">
-            <div class="preview-photo-thumb ${needsReview ? 'needs-review' : ''}" data-id="${photo.id}">
-                <img src="${photo.url}" alt="${photo.name}" style="${filterStyle}">
+            <div class="preview-photo-thumb preview-cropped ${needsReview && !photo.settings.fullImage ? 'needs-review' : ''}" 
+                 data-id="${photo.id}"
+                 style="width: ${frameWidth}px; height: ${frameHeight}px; background: ${bgColor};">
+                <img src="${photo.url}" alt="${photo.name}" 
+                     style="width: ${imgWidth}px; height: ${imgHeight}px; left: ${imgLeft}px; top: ${imgTop}px; ${filterStyle} ${rotateStyle}">
+                ${editedIcon}
+                ${fullImageIcon}
             </div>
             <div class="preview-photo-name">${photo.name}</div>
             <a href="#" class="preview-photo-edit" data-id="${photo.id}">редактировать</a>
@@ -817,6 +962,9 @@ function openEditor(photoId) {
     
     currentEditorPhotoIndex = index;
     
+    // Помечаем что фото было открыто в редакторе
+    AppState.photos[index].settings.wasEdited = true;
+    
     // Сбрасываем состояние редактора перед рендером
     const cropFrame = document.getElementById('crop-frame');
     const img = document.getElementById('editor-image');
@@ -836,18 +984,60 @@ function openEditor(photoId) {
         img.style.filter = '';
     }
     
-    renderEditor();
+    // Сначала показываем модалку, потом рендерим (чтобы canvas имел размеры)
     document.getElementById('editor-modal').classList.add('active');
+    
+    // Ждём пока модалка отрендерится и canvas получит размеры
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            renderEditor();
+        });
+    });
 }
 
 function closeEditor() {
+    // Сохраняем размер рамки редактора перед закрытием
+    const photo = AppState.photos[currentEditorPhotoIndex];
+    if (photo) {
+        const cropFrame = document.getElementById('crop-frame');
+        if (cropFrame && cropFrame.offsetWidth > 0) {
+            photo.settings.editorFrameWidth = cropFrame.offsetWidth;
+            photo.settings.editorFrameHeight = cropFrame.offsetHeight;
+        }
+    }
+    
     document.getElementById('editor-modal').classList.remove('active');
 }
 
 function navigateEditor(direction) {
+    // Сохраняем размер рамки текущего фото перед переключением
+    const currentPhoto = AppState.photos[currentEditorPhotoIndex];
+    if (currentPhoto) {
+        const cropFrame = document.getElementById('crop-frame');
+        if (cropFrame && cropFrame.offsetWidth > 0) {
+            currentPhoto.settings.editorFrameWidth = cropFrame.offsetWidth;
+            currentPhoto.settings.editorFrameHeight = cropFrame.offsetHeight;
+        }
+    }
+    
     currentEditorPhotoIndex += direction;
     if (currentEditorPhotoIndex < 0) currentEditorPhotoIndex = AppState.photos.length - 1;
     if (currentEditorPhotoIndex >= AppState.photos.length) currentEditorPhotoIndex = 0;
+    
+    // Сбрасываем состояние img перед рендером нового фото
+    const img = document.getElementById('editor-image');
+    if (img) {
+        img.src = '';
+        img.style.width = '';
+        img.style.height = '';
+        img.style.left = '0';
+        img.style.top = '0';
+        img.style.transform = '';
+    }
+    
+    // Помечаем новое фото как редактированное
+    AppState.photos[currentEditorPhotoIndex].settings.wasEdited = true;
+    
     renderEditor();
 }
 
@@ -1124,6 +1314,16 @@ function endDrag() {
 }
 
 function applyEditorChanges() {
+    // Сохраняем размер рамки редактора для правильного отображения в превью
+    const photo = AppState.photos[currentEditorPhotoIndex];
+    if (photo) {
+        const cropFrame = document.getElementById('crop-frame');
+        if (cropFrame) {
+            photo.settings.editorFrameWidth = cropFrame.offsetWidth;
+            photo.settings.editorFrameHeight = cropFrame.offsetHeight;
+        }
+    }
+    
     closeEditor();
     renderPreviewPage();
     updateTotalPrice();
@@ -1138,9 +1338,17 @@ function applyCropToAll() {
     const fullImage = photo.settings.fullImage;
     const filter = photo.settings.filter;
     
+    // Получаем размер рамки редактора для корректного отображения в превью
+    const cropFrame = document.getElementById('crop-frame');
+    const editorFrameWidth = cropFrame ? cropFrame.offsetWidth : 400;
+    const editorFrameHeight = cropFrame ? cropFrame.offsetHeight : 300;
+    
     AppState.photos.forEach(p => {
         p.settings.fullImage = fullImage;
         p.settings.filter = filter;
+        p.settings.wasEdited = true; // Помечаем как обработанное для превью
+        p.settings.editorFrameWidth = editorFrameWidth;
+        p.settings.editorFrameHeight = editorFrameHeight;
         // Сбрасываем позицию если включен режим с полями
         if (fullImage) {
             p.settings.crop.x = 0;
@@ -1240,14 +1448,27 @@ function showOrderModal() {
     
     const projectName = document.getElementById('project-name')?.value || 'Проект печати';
     document.getElementById('order-project-name').textContent = projectName;
-    document.getElementById('order-photos-count').textContent = `${AppState.photos.length} фото`;
     
-    const sizeCounts = {};
+    // Группируем фото по размерам и считаем количество
+    const sizeGroups = {};
     AppState.photos.forEach(p => {
-        sizeCounts[p.settings.size] = (sizeCounts[p.settings.size] || 0) + 1;
+        const size = p.settings.size;
+        if (!sizeGroups[size]) {
+            sizeGroups[size] = 0;
+        }
+        sizeGroups[size] += p.settings.quantity;
     });
-    const mainSize = Object.entries(sizeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '10x15';
-    document.getElementById('order-size').textContent = mainSize;
+    
+    // Формируем строку с размерами
+    const sizesInfo = Object.entries(sizeGroups)
+        .map(([size, count]) => `${count} × ${size}`)
+        .join(', ');
+    
+    // Общее количество фото
+    const totalPhotos = AppState.photos.reduce((sum, p) => sum + p.settings.quantity, 0);
+    
+    document.getElementById('order-photos-count').textContent = `${totalPhotos} фото`;
+    document.getElementById('order-size').textContent = sizesInfo;
     
     document.getElementById('order-cost').textContent = AppState.totalPrice;
     

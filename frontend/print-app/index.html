@@ -152,12 +152,6 @@
             <div class="photos-settings-list" id="photos-settings-list">
                 <!-- Список фото с настройками -->
             </div>
-            
-            <div class="apply-all-wrapper">
-                <button class="btn-apply-all" id="btn-apply-all">
-                    Применить настройки ко всем фото
-                </button>
-            </div>
         </section>
 
         <!-- ШАГ 3: Предпросмотр -->
@@ -167,23 +161,23 @@
             
             <div class="preview-header">
                 <div class="preview-settings">
-                    <h3>Настройки</h3>
-                    <div class="project-name">
-                        <input type="text" id="project-name" placeholder="Название проекта" value="Проект печати">
-                    </div>
+                    <label>Название проекта</label>
+                    <input type="text" id="project-name" placeholder="Название проекта" value="Проект печати">
                 </div>
-                
-                <div class="preview-filters">
+            </div>
+            
+            <div class="preview-filters-bar">
+                <div class="filters-left">
                     <span class="filter-label">Фильтр:</span>
-                    <button class="filter-btn active" data-filter="all">всего фото: <span id="filter-total">0</span></button>
+                    <button class="filter-btn active" data-filter="all">В печать: <span id="filter-total">0</span> /Загружено: <span id="filter-loaded">0</span></button>
                     <button class="filter-btn" data-filter="sized">в размер: <span id="filter-sized">0</span></button>
                     <button class="filter-btn" data-filter="review">на проверку: <span id="filter-review">0</span></button>
-                    
-                    <div class="group-toggle">
-                        <span>группировать:</span>
-                        <button class="group-btn active" data-group="size">Размер</button>
-                        <button class="group-btn" data-group="photo">Фото</button>
-                    </div>
+                </div>
+                
+                <div class="filters-right">
+                    <span>группировать:</span>
+                    <button class="group-btn active" data-group="size">Размер</button>
+                    <button class="group-btn" data-group="photo">Фото</button>
                 </div>
             </div>
             
@@ -328,7 +322,8 @@
                     <div class="order-info">
                         <div class="order-project-name" id="order-project-name">Проект №1</div>
                         <div class="order-details">
-                            <span id="order-photos-count">0 фото</span>, <span id="order-size">10x15</span>
+                            <span id="order-photos-count">0 фото</span>
+                            <div class="order-sizes" id="order-size"></div>
                             <a href="#" class="edit-order-link">редактировать</a>
                         </div>
                         <div class="order-cost">
