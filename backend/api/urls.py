@@ -1,17 +1,35 @@
 from django.urls import path
-from .views import test_api, product_list, add_to_cart, get_cart, remove_from_cart, me, merge_cart
-from django.urls import path
-from .views import register
-
+from . import views
 
 urlpatterns = [
-    path('test/', test_api),
-    path('products/', product_list),
-    path('cart/add/', add_to_cart),
-    path('cart/', get_cart),
-    path('cart/remove/<int:item_id>/', remove_from_cart),
-    path('auth/me/', me),
-    path('cart/merge/', merge_cart),
-    path('auth/register/', register),
-
+    # Test
+    path('test/', views.test_api),
+    
+    # Auth
+    path('auth/register/', views.register),
+    path('auth/me/', views.me),
+    path('auth/merge/', views.merge_cart),
+    
+    # Product Types & Config
+    path('product-types/', views.product_type_list),
+    path('product-types/<str:code>/', views.product_type_detail),
+    path('config/<str:product_code>/', views.print_config),
+    path('config/', views.print_config),  # default: prints
+    
+    # Projects
+    path('projects/', views.project_list),
+    path('projects/<uuid:project_id>/', views.project_detail),
+    path('projects/<uuid:project_id>/checkout/', views.create_order_from_project),
+    
+    # Photos
+    path('photos/upload/', views.photo_upload),
+    path('photos/upload-multiple/', views.photos_upload_multiple),
+    path('photos/<uuid:photo_id>/', views.photo_delete),
+    
+    # Orders
+    path('orders/', views.order_list),
+    path('orders/<int:order_id>/', views.order_detail),
+    
+    # Legacy
+    path('products/', views.product_list),
 ]
