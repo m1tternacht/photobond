@@ -35,6 +35,7 @@ class ProductTypeSerializer(serializers.ModelSerializer):
 
 
 class ProductTypeListSerializer(serializers.ModelSerializer):
+    """Краткий сериализатор для списков"""
     class Meta:
         model = ProductType
         fields = ['id', 'code', 'name', 'icon']
@@ -66,6 +67,7 @@ class PhotoUploadSerializer(serializers.ModelSerializer):
 # ==================== PROJECT SERIALIZERS ====================
 
 class ProjectListSerializer(serializers.ModelSerializer):
+    """Для списка проектов"""
     product_type_name = serializers.CharField(source='product_type.name', read_only=True)
     product_type_code = serializers.CharField(source='product_type.code', read_only=True)
     short_id = serializers.CharField(source='get_short_id', read_only=True)
@@ -85,6 +87,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
 
 
 class ProjectDetailSerializer(serializers.ModelSerializer):
+    """Полные данные проекта"""
     product_type = ProductTypeSerializer(read_only=True)
     product_type_id = serializers.PrimaryKeyRelatedField(
         queryset=ProductType.objects.all(),
@@ -106,12 +109,14 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
 
 
 class ProjectCreateSerializer(serializers.ModelSerializer):
+    """Для создания проекта"""
     class Meta:
         model = Project
         fields = ['name', 'product_type', 'data']
 
 
 class ProjectUpdateSerializer(serializers.ModelSerializer):
+    """Для обновления проекта"""
     class Meta:
         model = Project
         fields = ['name', 'status', 'data', 'preview_url', 'total_price']
@@ -132,6 +137,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
+    """Для списка заказов"""
     items_count = serializers.SerializerMethodField()
     items_summary = serializers.SerializerMethodField()
     
@@ -152,6 +158,7 @@ class OrderListSerializer(serializers.ModelSerializer):
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
+    """Полные данные заказа"""
     items = OrderItemSerializer(many=True, read_only=True)
     
     class Meta:
