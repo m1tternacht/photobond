@@ -112,7 +112,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
     """Для создания проекта"""
     class Meta:
         model = Project
-        fields = ['name', 'product_type', 'data']
+        fields = ['name', 'product_type', 'data', 'total_price']
 
 
 class ProjectUpdateSerializer(serializers.ModelSerializer):

@@ -1,11 +1,15 @@
 // ==================== PRINT APP ====================
 
+// API URL
+const API_URL = 'http://127.0.0.1:8000/api';
+
 // Состояние приложения
 const AppState = {
     currentStep: 1,
     photos: [], // { id, file, url, name, width, height, aspectRatio, orientation, settings: {...} }
-    sizes: [], // { value, label, price, ratio } - загружаются из standard-photos.html
-    papers: [], // { value, label, coefficient } - загружаются из standard-photos.html
+    sizes: [], // { value, label, price, ratio } - загружаются с API
+    papers: [], // { value, label, coefficient } - загружаются с API
+    projectId: null, // UUID проекта в БД
     projectName: 'Проект печати',
     totalPrice: 0,
     fullImageWarningShown: false, // показано ли предупреждение о полях
@@ -66,86 +70,189 @@ async function checkAuth() {
 // ==================== LOAD PRINT OPTIONS ====================
 async function loadPrintOptions() {
     try {
-        const res = await fetch('/frontend/standard-photos.html');
-        const html = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+        // Загружаем конфиг с API
+        const res = await fetch(`${API_URL}/config/prints/`);
+        if (!res.ok) throw new Error('Failed to load config');
         
-        // Парсим размеры из кнопок #size-buttons
-        const sizeButtons = doc.querySelectorAll('#size-buttons .option-btn');
-        if (sizeButtons.length > 0) {
-            AppState.sizes = Array.from(sizeButtons).map(btn => {
-                const value = btn.dataset.value.replace('х', 'x');
-                const [w, h] = value.split('x').map(Number);
+        const config = await res.json();
+        
+        // Парсим размеры
+        if (config.sizes && config.sizes.length > 0) {
+            AppState.sizes = config.sizes.map(s => {
+                const [w, h] = s.code.split('x').map(Number);
                 return {
-                    value: value,
-                    label: btn.dataset.value,
-                    price: parseFloat(btn.dataset.price) || 15,
-                    ratio: Math.max(w, h) / Math.min(w, h) // соотношение сторон
+                    value: s.code,
+                    label: s.name,
+                    price: parseFloat(s.price),
+                    ratio: Math.max(w, h) / Math.min(w, h)
                 };
             });
         }
         
-        // Парсим типы бумаги с коэффициентами
-        const allOptionBtns = doc.querySelectorAll('.option-btn');
-        const paperKeywords = {
-            'Глянец': 1.0,
-            'Матовая': 1.0,
-            'Шелк': 1.2,
-            'Шёлк': 1.2,
-            'Сатин': 1.3,
-            'Лён': 1.5
-        };
-        
-        const foundPapers = [];
-        allOptionBtns.forEach(btn => {
-            const value = btn.dataset.value;
-            if (paperKeywords.hasOwnProperty(value)) {
-                foundPapers.push({
-                    value: value.toLowerCase(),
-                    label: value,
-                    coefficient: btn.dataset.coefficient ? parseFloat(btn.dataset.coefficient) : paperKeywords[value]
-                });
-            }
-        });
-        
-        if (foundPapers.length > 0) {
-            AppState.papers = foundPapers;
+        // Парсим типы бумаги
+        if (config.papers && config.papers.length > 0) {
+            AppState.papers = config.papers.map(p => ({
+                value: p.code,
+                label: p.name,
+                coefficient: parseFloat(p.coefficient)
+            }));
         }
         
-        // Дефолтные значения если не нашли
-        if (AppState.sizes.length === 0) {
-            AppState.sizes = [
-                { value: '10x15', label: '10×15', price: 15, ratio: 1.5 },
-                { value: '15x21', label: '15×21', price: 25, ratio: 1.4 },
-                { value: '21x30', label: '21×30', price: 45, ratio: 1.43 },
-                { value: '30x42', label: '30×42', price: 95, ratio: 1.4 }
-            ];
-        }
-        
-        if (AppState.papers.length === 0) {
-            AppState.papers = [
-                { value: 'глянец', label: 'Глянец', coefficient: 1.0 },
-                { value: 'матовая', label: 'Матовая', coefficient: 1.0 },
-                { value: 'шёлк', label: 'Шёлк', coefficient: 1.2 },
-                { value: 'сатин', label: 'Сатин', coefficient: 1.3 }
-            ];
-        }
-        
-        console.log('Loaded sizes:', AppState.sizes);
-        console.log('Loaded papers:', AppState.papers);
+        console.log('Loaded sizes from API:', AppState.sizes);
+        console.log('Loaded papers from API:', AppState.papers);
         
     } catch (e) {
-        console.error('Failed to load print options:', e);
+        console.error('Failed to load print options from API:', e);
+        // Fallback - дефолтные значения
         AppState.sizes = [
-            { value: '10x15', label: '10×15', price: 15, ratio: 1.5 },
-            { value: '15x21', label: '15×21', price: 25, ratio: 1.4 },
-            { value: '21x30', label: '21×30', price: 45, ratio: 1.43 }
+            { value: '10x15', label: '10 × 15 см', price: 15, ratio: 1.5 },
+            { value: '15x21', label: '15 × 21 см', price: 35, ratio: 1.4 },
+            { value: '21x30', label: '21 × 30 см', price: 60, ratio: 1.43 }
         ];
         AppState.papers = [
-            { value: 'глянец', label: 'Глянец', coefficient: 1.0 },
-            { value: 'матовая', label: 'Матовая', coefficient: 1.0 }
+            { value: 'glossy', label: 'Глянцевая', coefficient: 1.0 },
+            { value: 'matte', label: 'Матовая', coefficient: 1.0 }
         ];
+    }
+}
+
+// ==================== API HELPERS ====================
+function getAuthHeaders() {
+    const token = localStorage.getItem('access');
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+// Сохранить проект в БД
+async function saveProject() {
+    try {
+        // Обновляем общую стоимость перед сохранением
+        updateTotalPrice();
+        
+        const projectData = {
+            photos: AppState.photos.map(p => ({
+                id: p.id,
+                serverId: p.serverId || null, // ID фото на сервере
+                name: p.name,
+                width: p.width,
+                height: p.height,
+                url: p.url, // пока храним локальный URL
+                settings: p.settings
+            }))
+        };
+        
+        let res;
+        if (AppState.projectId) {
+            // Обновляем существующий проект (без product_type)
+            const body = {
+                name: AppState.projectName,
+                data: projectData,
+                total_price: AppState.totalPrice
+            };
+            res = await fetch(`${API_URL}/projects/${AppState.projectId}/`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                credentials: 'include',
+                body: JSON.stringify(body)
+            });
+        } else {
+            // Создаём новый проект (с product_type)
+            const body = {
+                name: AppState.projectName,
+                product_type: 1, // prints
+                data: projectData,
+                total_price: AppState.totalPrice
+            };
+            res = await fetch(`${API_URL}/projects/`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                credentials: 'include',
+                body: JSON.stringify(body)
+            });
+        }
+        
+        if (!res.ok) {
+            const err = await res.text();
+            console.error('Server response:', err);
+            throw new Error('Failed to save project');
+        }
+        
+        const project = await res.json();
+        AppState.projectId = project.id;
+        
+        console.log('Project saved:', project);
+        return project;
+        
+    } catch (e) {
+        console.error('Failed to save project:', e);
+        throw e;
+    }
+}
+
+// Загрузить фото на сервер
+async function uploadPhotoToServer(file) {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (AppState.projectId) {
+            formData.append('project_id', AppState.projectId);
+        }
+        
+        const headers = {};
+        const token = localStorage.getItem('access');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const res = await fetch(`${API_URL}/photos/upload/`, {
+            method: 'POST',
+            headers: headers,
+            credentials: 'include',
+            body: formData
+        });
+        
+        if (!res.ok) throw new Error('Failed to upload photo');
+        
+        const photo = await res.json();
+        console.log('Photo uploaded:', photo);
+        return photo;
+        
+    } catch (e) {
+        console.error('Failed to upload photo:', e);
+        return null;
+    }
+}
+
+// Создать заказ из проекта
+async function createOrderFromProject() {
+    try {
+        // Сначала сохраняем проект
+        await saveProject();
+        
+        if (!AppState.projectId) {
+            throw new Error('No project ID');
+        }
+        
+        const res = await fetch(`${API_URL}/projects/${AppState.projectId}/checkout/`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            credentials: 'include'
+        });
+        
+        if (!res.ok) throw new Error('Failed to create order');
+        
+        const order = await res.json();
+        console.log('Order created:', order);
+        return order;
+        
+    } catch (e) {
+        console.error('Failed to create order:', e);
+        throw e;
     }
 }
 
@@ -1489,33 +1596,29 @@ async function submitOrder() {
         return;
     }
     
-    const projectName = document.getElementById('project-name')?.value || 'Проект печати';
-    
-    const orderData = {
-        projectName,
-        photos: AppState.photos.map(p => ({
-            name: p.name,
-            size: p.settings.size,
-            paper: p.settings.paper,
-            frame: p.settings.frame,
-            frameSize: p.settings.frameSize,
-            quantity: p.settings.quantity,
-            filter: p.settings.filter,
-            fullImage: p.settings.fullImage,
-            crop: p.settings.crop,
-            rotation: p.settings.rotation
-        })),
-        totalPrice: AppState.totalPrice
-    };
+    const btnOrder = document.getElementById('btn-order');
+    const originalText = btnOrder?.textContent;
     
     try {
-        console.log('Order submitted:', orderData);
-        alert('Заказ успешно оформлен! Вы можете отслеживать его в личном кабинете.');
+        if (btnOrder) {
+            btnOrder.textContent = 'Оформление...';
+            btnOrder.disabled = true;
+        }
+        
+        // Сохраняем имя проекта
+        const projectName = document.getElementById('project-name')?.value || 'Проект печати';
+        AppState.projectName = projectName;
+        
+        // Создаём заказ через API
+        const order = await createOrderFromProject();
+        
+        alert(`Заказ ${order.order_number} успешно оформлен! Вы можете отслеживать его в личном кабинете.`);
         
         document.getElementById('order-modal').classList.remove('active');
         
         // Очистка
         AppState.photos = [];
+        AppState.projectId = null;
         AppState.fullImageWarningShown = false;
         updatePhotosCount();
         goToStep(1);
@@ -1526,6 +1629,11 @@ async function submitOrder() {
     } catch (e) {
         console.error('Order failed:', e);
         alert('Ошибка при оформлении заказа. Попробуйте ещё раз.');
+    } finally {
+        if (btnOrder) {
+            btnOrder.textContent = originalText;
+            btnOrder.disabled = false;
+        }
     }
 }
 
@@ -1534,7 +1642,7 @@ function initFooterButtons() {
     const btnSave = document.getElementById('btn-save');
     const btnContinue = document.getElementById('btn-continue');
     
-    btnSave?.addEventListener('click', () => saveProject());
+    btnSave?.addEventListener('click', () => handleSaveProject());
     
     btnContinue?.addEventListener('click', () => {
         if (AppState.currentStep === 3) {
@@ -1553,34 +1661,29 @@ function initFooterButtons() {
     });
 }
 
-function saveProject() {
-    const token = localStorage.getItem('access');
-    
-    if (!token) {
-        alert('Для сохранения проекта необходимо войти в аккаунт');
-        return;
-    }
-    
+async function handleSaveProject() {
     const projectName = document.getElementById('project-name')?.value || 'Проект печати';
+    AppState.projectName = projectName;
     
-    const projectData = {
-        name: projectName,
-        type: 'print',
-        photos: AppState.photos.map(p => ({
-            name: p.name,
-            url: p.url,
-            width: p.width,
-            height: p.height,
-            settings: p.settings
-        })),
-        totalPrice: AppState.totalPrice,
-        createdAt: new Date().toISOString()
-    };
+    const btnSave = document.getElementById('btn-save');
+    const originalText = btnSave?.textContent;
     
-    const savedProjects = JSON.parse(localStorage.getItem('print_projects') || '[]');
-    savedProjects.push(projectData);
-    localStorage.setItem('print_projects', JSON.stringify(savedProjects));
-    
-    console.log('Project saved:', projectData);
-    alert('Проект сохранён!');
+    try {
+        if (btnSave) {
+            btnSave.textContent = 'Сохранение...';
+            btnSave.disabled = true;
+        }
+        
+        await saveProject();
+        alert('Проект сохранён!');
+        
+    } catch (e) {
+        console.error('Save failed:', e);
+        alert('Ошибка сохранения. Попробуйте позже.');
+    } finally {
+        if (btnSave) {
+            btnSave.textContent = originalText;
+            btnSave.disabled = false;
+        }
+    }
 }

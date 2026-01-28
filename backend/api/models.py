@@ -149,13 +149,9 @@ class Photo(models.Model):
 class Order(models.Model):
     """Заказы"""
     STATUS_CHOICES = [
-        ('pending', 'Ожидает оплаты'),
-        ('paid', 'Оплачен'),
         ('processing', 'В обработке'),
-        ('production', 'В производстве'),
-        ('shipped', 'Отправлен'),
-        ('delivered', 'Доставлен'),
-        ('cancelled', 'Отменён'),
+        ('accepted', 'Принят в работу'),
+        ('ready', 'Готов'),
     ]
     
     # Номер заказа: PB-2026-00123
@@ -164,7 +160,7 @@ class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', null=True, blank=True)
     session_key = models.CharField(max_length=40, null=True, blank=True)
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='processing')
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     # Данные доставки
